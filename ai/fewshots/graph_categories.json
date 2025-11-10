@@ -1,0 +1,56 @@
+{
+  "categories": [
+    {
+      "category_name": "Node summary & attribute distributions",
+      "category_description": "Single-node queries that summarize node counts and property distributions (e.g., follower_count of TikTokUser, age or smoking_frequency of Person) to profile populations and content at scale."
+    },
+    {
+      "category_name": "Content exposure by theme and topic",
+      "category_description": "Queries linking videos to topics/tags (YouTube topics, TikTok hashtags, video_label_content) to measure how often youth are exposed to themes like unhealthy lifestyles, gaming, or fitness."
+    },
+    {
+      "category_name": "Influencer reach and cross-platform presence",
+      "category_description": "Questions about Influencer nodes and their accounts (TikTokUser, YouTubeChannel), their follower/video counts and cross-platform video overlap to assess reach among youth."
+    },
+    {
+      "category_name": "Follow relationships and network neighborhoods",
+      "category_description": "Two- and three-node queries that examine who Person nodes follow (Person->FOLLOWS->Influencer) and the local follower graph to identify community anchors and potential spreaders of content."
+    },
+    {
+      "category_name": "Geography and socioeconomic context",
+      "category_description": "Queries that connect Person nodes to Area and Municipality (LIVES_IN_AREA / LIVES_IN_MUNICIPALITY / BELONGS_TO) to analyze how exposure and behaviors vary across neighborhoods and socioeconomic indicators."
+    },
+    {
+      "category_name": "Exposure-paths from influencers to youth",
+      "category_description": "Path-based queries that trace routes such as Influencer->HAS_ACCOUNT->TikTokUser->HAS_VIDEO->TikTokVideo->HAS_COMMENT->(Person) to map how specific content reaches young people."
+    },
+    {
+      "category_name": "Content engagement and interactions",
+      "category_description": "Queries focusing on engagement metrics (like_count, view_count, comment_count, share_count) and comments (text, like_count) to measure interaction with potentially harmful or beneficial content."
+    },
+    {
+      "category_name": "Hashtag/topic propagation and co-occurrence",
+      "category_description": "Questions that explore how TikTokHashTag and YoutubeVideoTopic/Tag are used together across videos and users to detect clusters of content and diffusion patterns."
+    },
+    {
+      "category_name": "Associations between online behavior and health outcomes",
+      "category_description": "Two/three-node and path queries linking Persons' survey attributes (e.g., smoking_frequency, energy_drink_days, has_mental_health_issues) with their follows/exposure to certain content to investigate correlations."
+    },
+    {
+      "category_name": "At-risk population identification",
+      "category_description": "Queries combining demographic and area deprivation indicators with online exposure (e.g., persons in high social_benefits_percentage areas who follow unhealthy-lifestyle influencers) to find vulnerable groups."
+    },
+    {
+      "category_name": "Temporal and trending content analysis",
+      "category_description": "Time-based queries using create_time/published_at to track emergence and decay of videos/tags and to relate temporal exposure windows to survey timing."
+    },
+    {
+      "category_name": "Media features and content attributes",
+      "category_description": "Queries that examine non-textual video attributes (stickers, music_id, video_duration, voice_to_text, thumbnails) to see whether certain production features correlate with higher engagement among youth."
+    },
+    {
+      "category_name": "Community detection and subgraph sampling",
+      "category_description": "Higher-order queries to extract subgraphs (e.g., influencer-centered ego networks or area-specific co-follow graphs) for community detection, sampling, and downstream social network analysis."
+    }
+  ]
+}

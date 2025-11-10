@@ -10,7 +10,7 @@ except Exception:  # pragma: no cover
 
 
 def load(version: str = "v1") -> Dict[str, Any]:
-    """Load examples mapping from ai/examples/<version>.yaml.
+    """Load examples mapping from ai/fewshots/<version>.yaml.
 
     Returns a dict with keys: "prompt_id" and "examples": List[Dict[id, tags, snippet]]
     """

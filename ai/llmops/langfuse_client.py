@@ -70,6 +70,7 @@ def create_completion(
     temperature: float, 
     max_tokens: int,
     langfuse_prompt: Any = None,
+    response_format: Optional[Dict[str, Any]] = None,
 ) -> str:
     """Create a chat completion using Langfuse OpenAI wrapper when configured.
 
@@ -82,6 +83,7 @@ def create_completion(
         temperature: Temperature parameter
         max_tokens: Maximum tokens to generate
         langfuse_prompt: Optional Langfuse prompt object to link to the observation
+        response_format: Optional response format (e.g., {"type": "json_object"} or JSON schema)
     """
     # Try Langfuse OpenAI wrapper first if keys are provided
     langfuse_host = os.environ.get("LANGFUSE_HOST")
@@ -93,10 +95,27 @@ def create_completion(
     if use_langfuse:
         try:
             # Check for Azure OpenAI configuration
+            # Note: If FORCE_OPENAI is set, Azure env vars may have been deleted
             azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
             azure_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
-            azure_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+            # Default to latest GA version (2024-06-01) for production stability
+            # Note: JSON schema support requires 2024-08-01-preview or later
+            azure_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-06-01")
             openai_api_key = os.environ.get("OPENAI_API_KEY")
+            
+            # Debug: Show which API will be used
+            if azure_endpoint and azure_api_key:
+                print(f"Langfuse: Azure OpenAI configured (endpoint: {azure_endpoint[:50]}...)")
+            elif openai_api_key:
+                print(f"Langfuse: Standard OpenAI configured")
+            else:
+                print(f"Langfuse: No API keys found")
+            
+            # Clean up Azure endpoint (remove trailing /models if present)
+            if azure_endpoint:
+                azure_endpoint = azure_endpoint.rstrip('/')
+                if azure_endpoint.endswith('/models'):
+                    azure_endpoint = azure_endpoint[:-7]  # Remove '/models'
             
             # Requires: pip install langfuse
             from langfuse.openai import OpenAI, AzureOpenAI  # type: ignore
@@ -105,19 +124,23 @@ def create_completion(
             langfuse = _init_langfuse_client()
             
             # Build kwargs for the API call
-            kwargs = {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            }
-            
-            # Link the prompt to the observation if provided
-            if langfuse_prompt is not None:
-                kwargs["langfuse_prompt"] = langfuse_prompt
-            
             # Use Azure OpenAI if configured, otherwise standard OpenAI
             if azure_endpoint and azure_api_key:
+                # Azure OpenAI uses max_completion_tokens instead of max_tokens
+                # Azure OpenAI (GPT-5-mini) only supports default temperature (1.0)
+                kwargs = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_completion_tokens": max_tokens,
+                }
+                # Azure OpenAI only supports default temperature (1.0), so skip temperature parameter
+                # This lets it use the default value
+                # Add response format if provided
+                if response_format:
+                    kwargs["response_format"] = response_format
+                # Link the prompt to the observation if provided
+                if langfuse_prompt is not None:
+                    kwargs["langfuse_prompt"] = langfuse_prompt
                 # Azure OpenAI via Langfuse wrapper
                 azure_client = AzureOpenAI(
                     azure_endpoint=azure_endpoint,
@@ -126,9 +149,87 @@ def create_completion(
                 )
                 res = azure_client.chat.completions.create(**kwargs)
             elif openai_api_key:
+                # Standard OpenAI - some newer models require max_completion_tokens
+                # Check environment variable or model name to determine which to use
+                use_max_completion = os.environ.get("USE_MAX_COMPLETION_TOKENS", "").lower() in {"1", "true", "yes"}
+                if not use_max_completion:
+                    # Auto-detect based on model name - newer models need max_completion_tokens
+                    # gpt-5 models (including gpt-5-mini) require max_completion_tokens
+                    model_lower = model.lower()
+                    use_max_completion = any(x in model_lower for x in ["gpt-4o", "gpt-4-turbo", "o1", "o3", "gpt-5", "gpt-5-mini"])
+                
+                kwargs = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                }
+                # Some models only support default temperature (1.0), skip temperature parameter
+                # gpt-4o and some newer models may have temperature restrictions
+                model_lower = model.lower()
+                supports_custom_temp = not any(x in model_lower for x in ["gpt-4o", "gpt-5", "o1", "o3"])
+                if supports_custom_temp and temperature != 1.0:
+                    kwargs["temperature"] = temperature
+                # Use the appropriate parameter based on model requirements
+                # Default to max_completion_tokens for newer models
+                if use_max_completion:
+                    kwargs["max_completion_tokens"] = max_tokens
+                else:
+                    kwargs["max_tokens"] = max_tokens
+                # Add response format if provided
+                if response_format:
+                    kwargs["response_format"] = response_format
+                # Link the prompt to the observation if provided
+                if langfuse_prompt is not None:
+                    kwargs["langfuse_prompt"] = langfuse_prompt
                 # Standard OpenAI via Langfuse wrapper (class-based approach avoids ambiguity)
                 openai_client = OpenAI(api_key=openai_api_key)
-                res = openai_client.chat.completions.create(**kwargs)
+                
+                # Try with the selected parameter, retry with corrected parameters if it fails
+                try:
+                    res = openai_client.chat.completions.create(**kwargs)
+                except Exception as e:
+                    error_str = str(e)
+                    # Check if this is a max_tokens/max_completion_tokens error
+                    is_token_param_error = (
+                        "max_tokens" in error_str and "max_completion_tokens" in error_str
+                    ) or (
+                        "unsupported parameter" in error_str.lower() and 
+                        ("max_tokens" in error_str or "max_completion_tokens" in error_str)
+                    ) or (
+                        "unsupported_parameter" in error_str.lower() and 
+                        ("max_tokens" in error_str or "max_completion_tokens" in error_str)
+                    )
+                    
+                    # Check if this is a temperature error
+                    is_temp_error = (
+                        "temperature" in error_str.lower() and 
+                        ("unsupported value" in error_str.lower() or "unsupported_value" in error_str.lower())
+                    )
+                    
+                    if is_token_param_error:
+                        # Switch to the other parameter
+                        if "max_tokens" in kwargs:
+                            del kwargs["max_tokens"]
+                            kwargs["max_completion_tokens"] = max_tokens
+                            print(f"Retrying with max_completion_tokens instead of max_tokens", file=sys.stderr)
+                        elif "max_completion_tokens" in kwargs:
+                            del kwargs["max_completion_tokens"]
+                            kwargs["max_tokens"] = max_tokens
+                            print(f"Retrying with max_tokens instead of max_completion_tokens", file=sys.stderr)
+                        # Retry with the corrected parameter (without langfuse_prompt to avoid double tracing)
+                        langfuse_prompt_backup = kwargs.pop("langfuse_prompt", None)
+                        res = openai_client.chat.completions.create(**kwargs)
+                        # Note: We lose Langfuse tracing on retry, but that's acceptable
+                    elif is_temp_error:
+                        # Remove temperature parameter and retry (model only supports default)
+                        if "temperature" in kwargs:
+                            del kwargs["temperature"]
+                            print(f"Retrying without temperature parameter (model only supports default)", file=sys.stderr)
+                        # Retry with the corrected parameter (without langfuse_prompt to avoid double tracing)
+                        langfuse_prompt_backup = kwargs.pop("langfuse_prompt", None)
+                        res = openai_client.chat.completions.create(**kwargs)
+                    else:
+                        # Re-raise if it's not a parameter error
+                        raise
             else:
                 raise RuntimeError(
                     "Either AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY or "
@@ -148,33 +249,85 @@ def create_completion(
     # Check for Azure OpenAI configuration
     azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
     azure_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
-    azure_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    # Default to latest GA version (2024-06-01) for production stability
+    # Note: JSON schema support requires 2024-08-01-preview or later
+    azure_api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-06-01")
+    
+    # Clean up Azure endpoint (remove trailing /models if present)
+    if azure_endpoint:
+        azure_endpoint = azure_endpoint.rstrip('/')
+        if azure_endpoint.endswith('/models'):
+            azure_endpoint = azure_endpoint[:-7]  # Remove '/models'
     
     # Check for standard OpenAI configuration
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     
     if azure_endpoint and azure_api_key:
-        # Use Azure OpenAI
+        # Use Azure OpenAI (uses max_completion_tokens instead of max_tokens)
+        # Azure OpenAI (GPT-5-mini) only supports default temperature (1.0), not 0.0
         client = AzureOpenAI(
             azure_endpoint=azure_endpoint,
             api_key=azure_api_key,
             api_version=azure_api_version,
         )
+        create_kwargs = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_completion_tokens": max_tokens,
+        }
+        # Azure OpenAI only supports default temperature (1.0), so skip temperature parameter
+        # This lets it use the default value
+        # Add response format if provided
+        if response_format:
+            create_kwargs["response_format"] = response_format
+        resp = client.chat.completions.create(**create_kwargs)
     elif openai_api_key:
-        # Use standard OpenAI
+        # Use standard OpenAI - some newer models require max_completion_tokens
         client = OpenAI(api_key=openai_api_key)
+        # Check environment variable or model name to determine which to use
+        use_max_completion = os.environ.get("USE_MAX_COMPLETION_TOKENS", "").lower() in {"1", "true", "yes"}
+        if not use_max_completion:
+            # Auto-detect based on model name
+            use_max_completion = any(x in model.lower() for x in ["gpt-4o", "gpt-4-turbo", "o1", "o3", "gpt-5"])
+        
+        create_kwargs = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        # Some models only support default temperature (1.0), skip temperature parameter
+        # gpt-4o and some newer models may have temperature restrictions
+        model_lower = model.lower()
+        supports_custom_temp = not any(x in model_lower for x in ["gpt-4o", "gpt-5", "o1", "o3"])
+        if supports_custom_temp and temperature != 1.0:
+            create_kwargs["temperature"] = temperature
+        # Use the appropriate parameter based on model requirements
+        if use_max_completion:
+            create_kwargs["max_completion_tokens"] = max_tokens
+        else:
+            create_kwargs["max_tokens"] = max_tokens
+        # Add response format if provided
+        if response_format:
+            create_kwargs["response_format"] = response_format
+        
+        try:
+            resp = client.chat.completions.create(**create_kwargs)
+        except Exception as e:
+            # If max_tokens fails, try max_completion_tokens (or vice versa)
+            if "max_tokens" in str(e) or "max_completion_tokens" in str(e):
+                if "max_tokens" in create_kwargs:
+                    del create_kwargs["max_tokens"]
+                    create_kwargs["max_completion_tokens"] = max_tokens
+                elif "max_completion_tokens" in create_kwargs:
+                    del create_kwargs["max_completion_tokens"]
+                    create_kwargs["max_tokens"] = max_tokens
+                resp = client.chat.completions.create(**create_kwargs)
+            else:
+                raise
     else:
         raise RuntimeError(
             "Either AZURE_OPENAI_ENDPOINT + AZURE_OPENAI_API_KEY or "
             "OPENAI_API_KEY is required when Langfuse is not configured."
         )
-    
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
-        temperature=temperature,
-        max_tokens=max_tokens,
-    )
     return (resp.choices[0].message.content or "").strip()
 
 

@@ -22,3 +22,8 @@ pyyaml>=6.0
 # Optional: For type hints (recommended)
 typing-extensions>=4.0.0
 
+# MCP (Model Context Protocol) Client SDK
+# Install with: pip install mcp
+# Or use the official MCP Python SDK from Anthropic
+mcp>=0.1.0
+

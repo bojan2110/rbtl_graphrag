@@ -201,7 +201,9 @@ EXECUTE_CYPHER=true OUTPUT_MODE=chat python ai/text_to_cypher.py "Return 5 Perso
 ```
 rbtl_graphrag/
 ├── ai/
-│   ├── examples/          # Example queries in YAML format
+│   ├── fewshots/          # Few-shot examples in YAML format
+│   │   ├── generate_query_categories.py # Generate query categories using query-category-builder
+│   │   └── generate_examples.py # Generate query examples for each category
 │   ├── llmops/           # Langfuse client and tracing
 │   ├── prompts/          # Prompt templates (YAML)
 │   ├── schema/           # Neo4j schema utilities
@@ -220,7 +222,119 @@ See the Testing Guide section above for detailed usage examples. The main comman
 python ai/text_to_cypher.py "Your question here"
 ```
 
+### Generate Query Categories
+
+Generate query categories using the query-category-builder prompt:
+
+```bash
+# Generate query categories (saves to ai/fewshots/graph_categories.json by default)
+python ai/fewshots/generate_query_categories.py
+
+# With custom output file
+OUTPUT_FILE=my_categories.json python ai/fewshots/generate_query_categories.py
+
+# With debug output
+DEBUG_PROMPT=true python ai/fewshots/generate_query_categories.py
+
+# Force schema refresh
+UPDATE_NEO4J_SCHEMA=true python ai/fewshots/generate_query_categories.py
+```
+
+**Structured JSON Output:**
+
+The script uses `response_format={"type": "json_object"}` which ensures the model returns valid JSON. Make sure your Langfuse prompt template instructs the model to return JSON in the desired format (e.g., with `category_name` and `category_description` fields).
+
+### Generate Query Examples
+
+Generate query examples for each category using the query-examples-builder prompt:
+
+```bash
+# Generate query examples (reads from ai/fewshots/graph_categories.json by default)
+python ai/fewshots/generate_examples.py
+
+# With custom categories file
+CATEGORIES_FILE=ai/fewshots/graph_categories_v2.json python ai/fewshots/generate_examples.py
+
+# With custom output file
+OUTPUT_FILE=my_examples.json python ai/fewshots/generate_examples.py
+```
+
+This script:
+1. Reads categories from a JSON file (default: `ai/fewshots/graph_categories.json`)
+2. For each category, calls the `query-examples-builder` prompt with `category_name` and `category_description`
+3. Generates question-cypher pairs (natural language question + corresponding Cypher query) for each category
+4. Outputs JSON with `category_name` and `examples` list (each example has `question` and `cypher`)
+5. Saves to `ai/fewshots/query_examples.json` by default
+
+**Output Format:**
+```json
+[
+  {
+    "category_name": "Entity lookup and profiling",
+    "examples": [
+      {
+        "question": "Return all Person nodes with their properties",
+        "cypher": "MATCH (p:Person) RETURN p LIMIT 100"
+      },
+      {
+        "question": "Find TikTokUser accounts with verification status",
+        "cypher": "MATCH (t:TikTokUser) WHERE t.is_verified = true RETURN t"
+      },
+      ...
+    ]
+  },
+  ...
+]
+```
+
 For more examples and advanced usage, refer to the Testing Guide section above.
+
+## MCP Client Integration
+
+This project can connect as an MCP client to other MCP servers, such as the [Neo4j GDS Agent](https://github.com/neo4j-contrib/gds-agent) for graph data science algorithms.
+
+### Using Neo4j GDS Agent
+
+1. **Install the GDS Agent** (if using as standalone):
+   ```bash
+   pip install gds-agent
+   ```
+
+2. **Use the MCP client**:
+   ```bash
+   python ai/gds_agent.py
+   ```
+   
+   Or use it in your code:
+   ```python
+   from ai.mcp_client import Neo4jGDSAgentClient
+   import asyncio
+   
+   async def main():
+       client = Neo4jGDSAgentClient()
+       await client.connect()
+       
+       # List available tools
+       tools = await client.list_tools()
+       for tool in tools:
+           print(f"{tool.name}: {tool.description}")
+       
+       # Call a tool
+       result = await client.call_tool("tool_name", {"param": "value"})
+       print(result)
+       
+       await client.close()
+   
+   asyncio.run(main())
+   ```
+
+3. **Configuration**: The client uses the same Neo4j credentials from your `.env` file:
+   - `NEO4J_URI`
+   - `NEO4J_USERNAME` or `NEO4J_USER`
+   - `NEO4J_PASSWORD`
+   - `NEO4J_DATABASE` (optional)
+
+For more details, see the [GDS Agent documentation](https://github.com/neo4j-contrib/gds-agent).
 
 ## Dependencies
 
@@ -229,6 +343,7 @@ For more examples and advanced usage, refer to the Testing Guide section above.
 - **openai** - OpenAI SDK
 - **python-dotenv** - Environment variable management
 - **pyyaml** - YAML parsing for prompts and examples
+- **mcp** - MCP (Model Context Protocol) Client SDK
 
 ## License
 

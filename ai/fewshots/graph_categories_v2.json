@@ -1,0 +1,60 @@
+{
+  "categories": [
+    {
+      "category_name": "Entity lookup and profiling",
+      "category_description": "Single-node queries to retrieve full properties for entities (Person, TikTokUser, YouTubeChannel, TikTokVideo, Area, Municipality, Influencer) for profiling, auditing and sample selection."
+    },
+    {
+      "category_name": "User activity and influence",
+      "category_description": "Two- and three-node queries that link account nodes to their videos and followers (TikTokUser -> HAS_VIDEO -> TikTokVideo; Person -> FOLLOWS -> Influencer) to measure reach, posting frequency, follower counts and potential influencer exposure for youths."
+    },
+    {
+      "category_name": "Video content and topical exposure",
+      "category_description": "Queries exploring relationships between videos and topics/tags (YouTubeVideo -[:HAS_TOPIC]-> YoutubeVideoTopic; TikTokVideo -[:HAS_TAG]-> TikTokHashTag) to find which topics or tags youth are exposed to and how often."
+    },
+    {
+      "category_name": "Hashtag, sticker and tag co-occurrence",
+      "category_description": "Multi-node patterns that find co-occurring hashtags, stickers or tags on the same video (TikTokVideo connected to multiple TikTokHashTag/TikTokSticker) to map content themes and combinations related to unhealthy lifestyles."
+    },
+    {
+      "category_name": "Cross-platform influencer mapping",
+      "category_description": "Paths that connect Influencer accounts across platforms (Influencer -[:HAS_ACCOUNT]-> TikTokUser and YouTubeChannel) and to Person followers to identify cross-platform reach and bridging actors."
+    },
+    {
+      "category_name": "Exposure-to-behavior correlations",
+      "category_description": "Three-or-more-node queries that trace Person -> FOLLOWS -> Influencer -> HAS_VIDEO -> Tag/Topic to correlate exposure to specific content types with reported health behaviors or outcomes in Person nodes."
+    },
+    {
+      "category_name": "Geographic distribution and area-level disparities",
+      "category_description": "Queries combining Person, Area and Municipality (Person -[:LIVES_IN_AREA]-> Area -[:BELONGS_TO]-> Municipality) to aggregate exposure metrics and health indicators by area or municipality to reveal spatial inequalities."
+    },
+    {
+      "category_name": "Network structure and community detection",
+      "category_description": "Graph traversal and path queries to identify clusters and communities (followers network, shared tags, shared videos) to find online communities that disproportionately include youths from disadvantaged areas."
+    },
+    {
+      "category_name": "Engagement and virality metrics",
+      "category_description": "Aggregate queries across videos and comments (view_count, like_count, share_count, comment_count) and paths from accounts to videos to compute engagement rates and identify highly viral content reaching youth."
+    },
+    {
+      "category_name": "Temporal and lifecycle analyses",
+      "category_description": "Time-aware queries using video create_time / published_at and comment.create_time to track content emergence, peaks in exposure and how temporal patterns map to reported behaviors in Persons."
+    },
+    {
+      "category_name": "Comment-level signals and community reactions",
+      "category_description": "Two- and three-node queries examining TikTokVideo -> HAS_COMMENT -> TikTokComment to measure volume, engagement and content of comments as proxies for sentiment and normative cues experienced by youth."
+    },
+    {
+      "category_name": "Influence pathways and diffusion cascades",
+      "category_description": "Path queries that trace follower chains and repost/mention relationships (Person -> FOLLOWS -> Influencer -> HAS_VIDEO -> TikTokHashTag) to model likely information diffusion routes into specific communities."
+    },
+    {
+      "category_name": "At-risk population identification and profiling",
+      "category_description": "Combined attribute and path queries to find Persons with health-risk indicators (e.g., smoking, drinking) who follow or are exposed to particular content/topics and live in low-income or high-benefit areas."
+    },
+    {
+      "category_name": "Tag/topic co-occurrence and semantic mapping",
+      "category_description": "Multi-hop queries building networks between YoutubeVideoTopic, YoutubeVideoTag, TikTokHashTag and video nodes to detect semantic clusters (e.g., 'fitness' vs 'unhealthy lifestyle') and how those clusters map to youth exposure."
+    }
+  ]
+}

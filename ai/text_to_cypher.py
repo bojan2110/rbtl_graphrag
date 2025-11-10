@@ -10,7 +10,7 @@ if str(ROOT) not in sys.path:
 from utils_neo4j import get_driver, close_driver, get_session
 from ai.schema.schema_utils import get_cached_schema, fetch_schema_from_neo4j
 from ai.terminology.loader import load as load_terminology, as_text as terminology_as_text
-from ai.examples.loader import load_text as load_examples_text
+from ai.fewshots.loader import load_text as load_examples_text
 from ai.llmops.langfuse_client import create_completion, get_prompt_from_langfuse
 from openai import OpenAI  # type: ignore
 from dotenv import load_dotenv  # type: ignore
@@ -129,14 +129,19 @@ def main() -> None:
         print(rendered)
 
     # 4) If OpenAI is available and API key is set, call the model
+    # Check for Azure OpenAI first, then standard OpenAI
+    azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
+    azure_api_key = os.environ.get("AZURE_OPENAI_API_KEY")
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    
     # Prefer OPEN_AI_* (project naming), fallback to OPENAI_* (SDK naming)
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if OpenAI is not None and api_key:
-        model = (
-            os.environ.get("OPEN_AI_MODEL")
-            or os.environ.get("OPENAI_MODEL")
-            or "gpt-4o"
-        )
+    model = (
+        os.environ.get("OPEN_AI_MODEL")
+        or os.environ.get("OPENAI_MODEL")
+        or "gpt-4o"
+    )
+    
+    if OpenAI is not None and (azure_endpoint and azure_api_key or openai_api_key):
         temperature = float(params.get("temperature", 0.0))
         max_tokens = int(params.get("max_tokens", 1200))
 
