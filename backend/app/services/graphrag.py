@@ -25,7 +25,32 @@ from ai.terminology.loader import load as load_terminology, as_text as terminolo
 from ai.fewshots.vector_store import get_vector_store
 from ai.llmops.langfuse_client import create_completion, get_prompt_from_langfuse
 
+# Optional: Graph analytics agent (only imported if needed)
+try:
+    from ai.agent import GraphAnalyticsAgent, GraphAnalyticsAgentError
+    ANALYTICS_AVAILABLE = True
+except ImportError as e:
+    ANALYTICS_AVAILABLE = False
+    GraphAnalyticsAgent = None
+    GraphAnalyticsAgentError = None
+    import logging
+    _temp_logger = logging.getLogger("GraphRAGService")
+    _temp_logger.warning(f"Graph analytics agent import failed: {e}")
+except Exception as e:
+    ANALYTICS_AVAILABLE = False
+    GraphAnalyticsAgent = None
+    GraphAnalyticsAgentError = None
+    import logging
+    _temp_logger = logging.getLogger("GraphRAGService")
+    _temp_logger.warning(f"Graph analytics agent import failed (non-ImportError): {e}")
+
 logger = logging.getLogger("GraphRAGService")
+
+# Log analytics availability on module load
+if ANALYTICS_AVAILABLE:
+    logger.info("Graph analytics agent is available")
+else:
+    logger.warning("Graph analytics agent is NOT available (import failed)")
 
 
 _PROMPT_VAR_PATTERN = re.compile(r"{{\s*(\w+)\s*}}")
@@ -90,6 +115,7 @@ class GraphRAGService:
         self._terminology_str = None
         self._prompt = None
         self._params = None
+        self._analytics_agent = None
     
     def _get_schema(self) -> str:
         """Get Neo4j schema (cached)."""
@@ -130,23 +156,89 @@ class GraphRAGService:
             self._params = getattr(self._prompt, "config", None) or {}
         return self._prompt, self._params
     
+    def _get_analytics_agent(self):
+        """Get or create analytics agent (lazy initialization)."""
+        if not ANALYTICS_AVAILABLE:
+            return None
+        if self._analytics_agent is None:
+            # Initialize with LLM selector enabled
+            # The agent's LLM will decide if a tool is appropriate
+            self._analytics_agent = GraphAnalyticsAgent(use_llm_selector=True)
+        return self._analytics_agent
+    
     async def process_question(
         self,
         question: str,
         execute_cypher: bool = True,
         output_mode: str = "chat",
+        try_analytics_first: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """Process a question and return Cypher query with optional results.
+        
+        Routing logic:
+        1. If try_analytics_first=True, attempt analytics agent first
+        2. Analytics agent uses LLM to select appropriate tool
+        3. If analytics agent finds a tool, use it
+        4. Otherwise, fall back to text-to-Cypher
         
         Args:
             question: User's natural language question
             execute_cypher: Whether to execute the generated Cypher
             output_mode: "json", "chat", or "both"
+            try_analytics_first: If None, uses ENABLE_ANALYTICS_AGENT env var (default: False)
         
         Returns:
-            Dictionary with question, cypher, results, summary, examples_used
+            Dictionary with question, cypher (or tool_name), results, summary, examples_used
         """
-        # Run in thread pool to avoid blocking
+        # Determine if analytics should be tried
+        # Default to False (disabled) unless explicitly enabled via env var
+        if try_analytics_first is None:
+            try_analytics_first = os.environ.get("ENABLE_ANALYTICS_AGENT", "false").lower() in {"1", "true", "yes"}
+        
+        # Try analytics first if enabled
+        if try_analytics_first and ANALYTICS_AVAILABLE:
+            logger.info("GraphRAG: Attempting analytics agent first...")
+            agent = self._get_analytics_agent()
+            if agent:
+                try:
+                    logger.info("GraphRAG: Analytics agent available, running question through it...")
+                    # Analytics agent uses LLM to select tool
+                    # If it finds a tool, it will execute it
+                    # If no tool is appropriate, it raises GraphAnalyticsAgentError
+                    analytics_result = await agent.run(question)
+                    logger.info(f"GraphRAG: Analytics agent succeeded with tool: {analytics_result.tool_name}")
+                    
+                    # Analytics succeeded - return analytics result
+                    return {
+                        "question": question,
+                        "route_type": "analytics",  # Indicate this used analytics
+                        "tool_name": analytics_result.tool_name,
+                        "tool_inputs": analytics_result.inputs,
+                        "results": analytics_result.raw_result,
+                        "summary": analytics_result.summary,
+                        "examples_used": None,
+                        "cypher": None,  # No Cypher for analytics
+                        "error": None,
+                        "timings": {},  # Could add timing if needed
+                    }
+                except GraphAnalyticsAgentError as e:
+                    # Analytics agent couldn't find appropriate tool
+                    # Fall through to Cypher
+                    logger.info(f"GraphRAG: Analytics agent found no suitable tool: {e}, falling back to Cypher")
+                    pass
+                except Exception as e:
+                    # Analytics failed for other reason - log and fall back
+                    logger.warning(f"GraphRAG: Analytics agent error: {e}, falling back to Cypher", exc_info=True)
+                    pass
+            else:
+                logger.info("GraphRAG: Analytics agent not available, skipping analytics route")
+        else:
+            if not ANALYTICS_AVAILABLE:
+                logger.debug("GraphRAG: Analytics not available (import failed), using Cypher only")
+            if not try_analytics_first:
+                logger.debug("GraphRAG: try_analytics_first=False, using Cypher only")
+        
+        # Fall back to text-to-Cypher (existing behavior)
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
@@ -290,6 +382,7 @@ class GraphRAGService:
         
         result = {
             "question": question,
+            "route_type": "cypher",  # Indicate this used Cypher
             "cypher": cypher,
             "results": None,
             "summary": None,

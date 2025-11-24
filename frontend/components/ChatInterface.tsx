@@ -17,7 +17,10 @@ export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
+  route_type?: 'analytics' | 'cypher'  // Which route was taken
   cypher?: string
+  tool_name?: string  // Analytics tool name
+  tool_inputs?: Record<string, any>  // Analytics tool inputs
   results?: any[]
   summary?: string
   examples?: any[]
@@ -34,11 +37,18 @@ interface ChatInterfaceProps {
   onProcessingChange?: (isProcessing: boolean) => void
 }
 
-const PROCESS_STEPS = [
+const PROCESS_STEPS_CYPHER = [
   'Getting similar queries',
   'Generating Cypher',
   'Querying knowledge base',
   'Generating final response',
+]
+
+const PROCESS_STEPS_ANALYTICS = [
+  'Analyzing question',
+  'Selecting graph tool',
+  'Executing algorithm',
+  'Generating results',
 ]
 
 const STEP_DURATION_MS = 2500
@@ -62,8 +72,10 @@ export default function ChatInterface({
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [favoriteUpdatingId, setFavoriteUpdatingId] = useState<string | null>(null)
   const [processingStepIndex, setProcessingStepIndex] = useState<number | null>(null)
+  const [routeType, setRouteType] = useState<'analytics' | 'cypher' | null>(null)
+  const [selectedTool, setSelectedTool] = useState<string | null>(null)
   const [stepDurations, setStepDurations] = useState<number[]>(
-    () => PROCESS_STEPS.map(() => 0)
+    () => PROCESS_STEPS_CYPHER.map(() => 0)
   )
   const [currentStepElapsed, setCurrentStepElapsed] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -83,7 +95,8 @@ export default function ChatInterface({
 
   useEffect(() => {
     if (isLoading) {
-      setStepDurations(PROCESS_STEPS.map(() => 0))
+      const steps = routeType === 'analytics' ? PROCESS_STEPS_ANALYTICS : PROCESS_STEPS_CYPHER
+      setStepDurations(steps.map(() => 0))
       setCurrentStepElapsed(0)
       setProcessingStepIndex(0)
       previousStepIndexRef.current = null
@@ -95,7 +108,8 @@ export default function ChatInterface({
       processingIntervalRef.current = setInterval(() => {
         setProcessingStepIndex((prev) => {
           if (prev === null) return prev
-          if (prev >= PROCESS_STEPS.length - 1) {
+          const steps = routeType === 'analytics' ? PROCESS_STEPS_ANALYTICS : PROCESS_STEPS_CYPHER
+          if (prev >= steps.length - 1) {
             return prev
           }
           return prev + 1
@@ -273,6 +287,8 @@ export default function ChatInterface({
     }
     setMessages((prev) => [...prev, userMessage])
     setIsLoading(true)
+    setRouteType(null)  // Reset route type for new question
+    setSelectedTool(null)  // Reset tool selection
 
     const controller = new AbortController()
     activeRequestControllerRef.current = controller
@@ -290,6 +306,9 @@ export default function ChatInterface({
         id: response.message_id || (Date.now() + 1).toString(),
         role: 'assistant',
         content: response.summary || 'Query executed successfully',
+        route_type: response.route_type,
+        tool_name: response.tool_name,
+        tool_inputs: response.tool_inputs,
         cypher: response.cypher,
         results: response.results,
         summary: response.summary,
@@ -298,6 +317,14 @@ export default function ChatInterface({
         timestamp: new Date(),
         isFavorite: false,
         timings: response.timings,
+      }
+      
+      // Update route type and tool for progress display
+      if (response.route_type) {
+        setRouteType(response.route_type)
+      }
+      if (response.tool_name) {
+        setSelectedTool(response.tool_name)
       }
       
       setMessages((prev) => [...prev, assistantMessage])
@@ -394,8 +421,22 @@ export default function ChatInterface({
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-700"></div>
               <span>Processing your question...</span>
             </div>
+            {routeType && (
+              <div className="text-xs text-gray-500 border-b border-gray-200 pb-2">
+                Route: <span className="font-semibold">{routeType === 'analytics' ? 'Graph Analytics' : 'Cypher Query'}</span>
+                {selectedTool && (
+                  <span className="ml-2">
+                    | Tool: <span className="font-semibold">{selectedTool}</span>
+                  </span>
+                )}
+              </div>
+            )}
             <ol className="space-y-2">
-              {PROCESS_STEPS.map((step, index) => {
+              {(routeType === 'analytics' ? PROCESS_STEPS_ANALYTICS : PROCESS_STEPS_CYPHER).map((step, index) => {
+                // Show tool name in step 2 for analytics
+                const displayStep = routeType === 'analytics' && index === 1 && selectedTool
+                  ? `${step}: ${selectedTool}`
+                  : step
                 const isComplete =
                   processingStepIndex !== null && index < processingStepIndex
                 const isCurrent = processingStepIndex === index
@@ -405,7 +446,7 @@ export default function ChatInterface({
                   ? 'bg-blue-500 animate-pulse'
                   : 'bg-gray-300'
                 return (
-                  <li key={step} className="flex items-center space-x-2">
+                  <li key={`${step}-${index}`} className="flex items-center space-x-2">
                     <span
                       className={`h-2.5 w-2.5 rounded-full inline-block ${statusClass}`}
                     ></span>
@@ -418,7 +459,7 @@ export default function ChatInterface({
                           : 'text-gray-400'
                       }
                     >
-                      {step}
+                      {displayStep}
                     </span>
                   </li>
                 )

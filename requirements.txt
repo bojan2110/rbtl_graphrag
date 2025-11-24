@@ -35,3 +35,10 @@ mcp[cli]>=1.11.0
 # Graph Data Science - must be >=1.16 for gds-agent compatibility
 graphdatascience>=1.16
 neo4j>=5.28.1
+
+# Documentation toolchain
+mkdocs>=1.6
+mkdocs-material>=9.5
+mkdocs-mermaid2-plugin>=1.0.7
+mkdocs-glightbox>=0.3.6
+pymdown-extensions>=10.8

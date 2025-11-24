@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Example MCP client for connecting to the GDS Agent server.
 

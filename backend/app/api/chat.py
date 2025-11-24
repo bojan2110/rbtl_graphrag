@@ -28,7 +28,10 @@ class ChatMessage(BaseModel):
     id: str
     role: Literal["user", "assistant"]
     content: str
+    route_type: Optional[str] = None  # "analytics" or "cypher"
     cypher: Optional[str] = None
+    tool_name: Optional[str] = None  # For analytics results
+    tool_inputs: Optional[Dict[str, Any]] = None  # For analytics results
     results: Optional[List[Dict[str, Any]]] = None
     summary: Optional[str] = None
     examples: Optional[List[Dict[str, Any]]] = None
@@ -64,7 +67,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     username: str
     question: str
+    route_type: Optional[str] = None  # "analytics" or "cypher"
     cypher: Optional[str] = None
+    tool_name: Optional[str] = None  # For analytics results
+    tool_inputs: Optional[Dict[str, Any]] = None  # For analytics results
     results: Optional[List[Dict[str, Any]]] = None
     summary: Optional[str] = None
     examples_used: Optional[List[Dict[str, Any]]] = None
@@ -176,7 +182,10 @@ async def chat(request: ChatRequest):
             "id": str(uuid4()),
             "role": "assistant",
             "content": result.get("summary") or "Query executed successfully",
+            "route_type": result.get("route_type"),  # "analytics" or "cypher"
             "cypher": result.get("cypher"),
+            "tool_name": result.get("tool_name"),  # Analytics tool name
+            "tool_inputs": result.get("tool_inputs"),  # Analytics tool inputs
             "results": result.get("results"),
             "summary": result.get("summary"),
             "examples": result.get("examples_used"),
@@ -252,4 +261,35 @@ async def chat_stream(websocket: WebSocket):
         pass
     except Exception as e:
         await websocket.send_json({"type": "error", "message": str(e)})
+
+
+@router.get("/chat/analytics-tools")
+async def list_analytics_tools():
+    """Return available graph analytics tools and example questions."""
+    try:
+        from ai.agent import GraphAnalyticsAgent
+        
+        # Create a temporary agent to get tool configs (doesn't connect to MCP)
+        agent = GraphAnalyticsAgent(use_llm_selector=False)  # Don't need LLM for listing
+        tools = agent.list_tools()
+        
+        tools_info = []
+        for tool in tools:
+            tools_info.append({
+                "name": tool.name,
+                "description": tool.description,
+                "keywords": list(tool.keywords),
+                "defaults": tool.defaults,
+            })
+        
+        return {
+            "tools": tools_info,
+            "note": "These tools are available for graph analytics questions. Ask questions naturally and the system will route to the appropriate tool."
+        }
+    except Exception as e:
+        return {
+            "tools": [],
+            "error": str(e),
+            "note": "Failed to load analytics tools. Ensure the agent is properly configured."
+        }
 

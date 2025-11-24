@@ -5,7 +5,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 export interface ChatResponse {
   username: string
   question: string
+  route_type?: 'analytics' | 'cypher'  // Which route was taken
   cypher?: string
+  tool_name?: string  // Analytics tool name (if route_type === 'analytics')
+  tool_inputs?: Record<string, any>  // Analytics tool inputs
   results?: any[]
   summary?: string
   examples_used?: Array<{
@@ -22,7 +25,10 @@ export interface ChatMessageRecord {
   id: string
   role: 'user' | 'assistant'
   content: string
+  route_type?: 'analytics' | 'cypher'  // Which route was taken
   cypher?: string
+  tool_name?: string  // Analytics tool name
+  tool_inputs?: Record<string, any>  // Analytics tool inputs
   results?: any[]
   summary?: string
   examples?: any[]

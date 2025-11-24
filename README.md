@@ -56,6 +56,10 @@ OPENAI_MODEL=gpt-4o  # Optional, defaults to gpt-4o
 # Optional Configuration
 PROMPT_LABEL=production  # Optional, defaults to production
 
+# Graph Analytics Agent (Experimental)
+ENABLE_ANALYTICS_AGENT=false  # Set to true to enable graph analytics tools (leiden, article_rank, bridges, etc.)
+                              # Default: false (all questions use text-to-Cypher route)
+
 # MongoDB Configuration (for Knowledge Base)
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
 MONGODB_DATABASE=graphrag  # Optional, defaults to graphrag
@@ -292,6 +296,43 @@ This script:
 ```
 
 For more examples and advanced usage, refer to the Testing Guide section above.
+
+## Graph Analytics Agent (Experimental)
+
+The project includes an experimental graph analytics agent that can route questions to graph algorithms (community detection, influence ranking, etc.) using the Neo4j GDS Agent via MCP.
+
+### Configuration
+
+By default, the analytics agent is **disabled**. All questions will use the text-to-Cypher route.
+
+To enable the analytics agent for testing:
+
+1. **Set environment variable** in your `.env` file:
+   ```bash
+   ENABLE_ANALYTICS_AGENT=true
+   ```
+
+2. **Restart the backend server**
+
+3. **Test with analytics questions**:
+   - "Find communities of people in Rotterdam"
+   - "Which influencers are most important?"
+   - "Show me bridge connections in the network"
+
+### How It Works
+
+When enabled, the system will:
+1. First attempt to route the question to an analytics tool (if appropriate)
+2. If no analytics tool is suitable, fall back to text-to-Cypher
+3. The progress card in the UI shows which route was taken
+
+### Current Status
+
+- **Production**: Analytics agent is disabled by default
+- **Testing**: Enable with `ENABLE_ANALYTICS_AGENT=true` to test graph algorithms
+- **Available Tools**: `leiden` (community detection), `article_rank` (influence ranking), `bridges` (critical connections), `count_nodes` (statistics)
+
+For more details, see [GRAPH_ANALYTICS_GUIDE.md](GRAPH_ANALYTICS_GUIDE.md).
 
 ## MCP Client Integration
 

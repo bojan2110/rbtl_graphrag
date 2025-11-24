@@ -335,6 +335,9 @@ class VectorStore:
             return []
         
         # Search using Neo4j vector index
+        # Get query timeout from environment (default: 30 seconds for vector queries)
+        query_timeout = float(os.environ.get("NEO4J_QUERY_TIMEOUT", "30.0"))
+        
         with get_session(database=self.database) as session:
             search_query = f"""
             CALL db.index.vector.queryNodes(
@@ -354,12 +357,30 @@ class VectorStore:
             """
             
             try:
-                result = session.run(search_query, {
-                    "index_name": self.index_name,
-                    "top_k": top_k,
-                    "query_embedding": query_embedding,
-                    "min_similarity": min_similarity,
-                })
+                # Use timeout parameter if supported by driver version
+                # Note: timeout parameter may not be available in all Neo4j driver versions
+                try:
+                    result = session.run(
+                        search_query,
+                        {
+                            "index_name": self.index_name,
+                            "top_k": top_k,
+                            "query_embedding": query_embedding,
+                            "min_similarity": min_similarity,
+                        },
+                        timeout=query_timeout,
+                    )
+                except TypeError:
+                    # Driver version doesn't support timeout parameter
+                    result = session.run(
+                        search_query,
+                        {
+                            "index_name": self.index_name,
+                            "top_k": top_k,
+                            "query_embedding": query_embedding,
+                            "min_similarity": min_similarity,
+                        },
+                    )
                 
                 results = []
                 for row in result:
@@ -376,9 +397,23 @@ class VectorStore:
                 
                 return results
             except Exception as e:
-                # Fallback if vector index query fails (e.g., older Neo4j version)
-                print(f"⚠️  Vector index query failed: {e}")
-                print("  Falling back to manual similarity calculation...")
+                error_msg = str(e)
+                # Check if it's a timeout error
+                if "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                    logger.warning(
+                        "Vector index query timed out after %.1fs: %s. "
+                        "This may indicate network issues or a slow Neo4j server. "
+                        "Falling back to manual similarity calculation...",
+                        query_timeout,
+                        error_msg,
+                    )
+                else:
+                    logger.warning(
+                        "Vector index query failed: %s. "
+                        "Falling back to manual similarity calculation...",
+                        error_msg,
+                    )
+                # Fallback if vector index query fails (e.g., timeout, older Neo4j version)
                 return self._fallback_search(query, query_embedding, top_k, min_similarity)
     
     def _fallback_search(

@@ -1,0 +1,54 @@
+site_name: RBTL GraphRAG
+site_description: Documentation for RBTL (Reading Between the Lines) GraphRAG implementation.
+site_url: https://bojan2110.github.io/rbtl_graphrag
+repo_url: https://github.com/bojan2110/rbtl_graphrag
+repo_name: bojan2110/rbtl_graphrag
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.sections
+    - content.code.copy
+    - toc.integrate
+    - search.highlight
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bojan2110/rbtl_graphrag
+plugins:
+  - search
+  - mermaid2
+  - glightbox
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.details
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture:
+      - Overview: architecture/system-overview.md
+      - Backend Services: architecture/backend.md
+      - Frontend / UI: architecture/frontend.md
+      - AI & MCP Stack: architecture/ai-stack.md
+      - MCP Architecture: architecture/mcp.md
+  - Guides:
+      - Graph Analytics Agent: guides/graph-analytics.md
+      - Prompt & Few-Shot Management: guides/prompts.md
+  - Operations:
+      - Deployment & Environments: operations/deployment.md
+      - Testing Strategy: operations/testing.md
+      - Documentation Ops: operations/docs.md
+  - Reference:
+      - API Surface: reference/api.md
+      - Glossary: reference/glossary.md
+  - Contributing: contributing/index.md
+
