@@ -34,7 +34,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from utils_neo4j import get_driver, get_session  # type: ignore
+from utils.neo4j import get_driver, get_session  # type: ignore
 
 # Load .env file at module level so environment variables are available for constants
 if load_dotenv is not None:

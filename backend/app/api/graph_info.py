@@ -150,8 +150,9 @@ async def get_graph_visualization():
         raise HTTPException(
             status_code=404,
             detail=(
-                "Schema visualization not found. Please run "
-                "python generate_schema_visualization.py to generate it."
+                "Schema visualization not found. "
+                "Generate it by calling Neo4j's db.schema.visualization() procedure "
+                "and saving the result to ai/schema/visualization.json"
             ),
         )
     

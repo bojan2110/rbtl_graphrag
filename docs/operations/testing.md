@@ -11,20 +11,7 @@ Testing currently focuses on scripted smoke tests plus manual validation through
 
 ## Scripted Workflow
 
-### Option 1 – Convenience Scripts
-
-```bash
-# Terminal 1
-source venv/bin/activate
-./test_backend.sh
-
-# Terminal 2
-./test_frontend.sh
-```
-
-These wrappers will evolve to run pytest/coverage and frontend lint/unit tests.
-
-### Option 2 – Manual Bring-Up
+### Manual Bring-Up
 
 1. **Activate venv**
    ```bash
@@ -74,10 +61,9 @@ These wrappers will evolve to run pytest/coverage and frontend lint/unit tests.
 - **Frontend can’t reach backend**: verify FastAPI is running on `http://localhost:8000`, update `NEXT_PUBLIC_API_URL`, and confirm CORS settings.
 - **API errors**: read backend logs, test endpoints via curl/Postman, or hit `http://localhost:8000/docs`.
 
-## Additional Test Assets
+## Additional Testing
 
-- `test_gds_agent_from_source.py` / `test_gds_agent_standalone.py` for MCP analytics agent verification.
-- `test_gds_agent...?` scripts ensure `ai/mcp_client.py` stays compatible with upstream GDS releases.
+For MCP analytics agent verification, use `python ai/mcp_client.py --interactive` to manually test tool discovery and invocation.
 
 ## Future Work
 

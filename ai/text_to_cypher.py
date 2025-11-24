@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from utils_neo4j import get_driver, close_driver, get_session
+from utils.neo4j import get_driver, close_driver, get_session
 from ai.schema.schema_utils import get_cached_schema, fetch_schema_from_neo4j
 from ai.terminology.loader import load as load_terminology, as_text as terminology_as_text
 from ai.fewshots.loader import load_text as load_examples_text

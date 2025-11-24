@@ -20,7 +20,7 @@ except Exception:
 
 # Import driver utilities for Neo4j connection
 try:
-    from utils_neo4j import get_driver, close_driver  # type: ignore
+    from utils.neo4j import get_driver, close_driver  # type: ignore
 except Exception:
     get_driver = None  # type: ignore
     close_driver = None  # type: ignore
@@ -298,7 +298,7 @@ def fetch_schema_from_neo4j() -> str:
         Formatted schema string
     """
     if get_driver is None:
-        raise RuntimeError("utils_neo4j.get_driver is required. Ensure utils_neo4j.py is available.")
+        raise RuntimeError("utils.neo4j.get_driver is required. Ensure utils/neo4j.py is available.")
     
     driver = get_driver()
     try:

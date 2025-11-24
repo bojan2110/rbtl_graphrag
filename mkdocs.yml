@@ -1,8 +1,9 @@
 site_name: RBTL GraphRAG
 site_description: Documentation for RBTL (Reading Between the Lines) GraphRAG implementation.
-site_url: https://bojan2110.github.io/rbtl_graphrag
+site_url: https://bojan2110.github.io/rbtl_graphrag/
 repo_url: https://github.com/bojan2110/rbtl_graphrag
 repo_name: bojan2110/rbtl_graphrag
+use_directory_urls: true
 theme:
   name: material
   language: en
@@ -39,16 +40,11 @@ nav:
       - Backend Services: architecture/backend.md
       - Frontend / UI: architecture/frontend.md
       - AI & MCP Stack: architecture/ai-stack.md
-      - MCP Architecture: architecture/mcp.md
-  - Guides:
-      - Graph Analytics Agent: guides/graph-analytics.md
-      - Prompt & Few-Shot Management: guides/prompts.md
   - Operations:
+      - Azure Production Deployment: operations/azure-deployment.md
       - Deployment & Environments: operations/deployment.md
       - Testing Strategy: operations/testing.md
       - Documentation Ops: operations/docs.md
   - Reference:
       - API Surface: reference/api.md
-      - Glossary: reference/glossary.md
-  - Contributing: contributing/index.md
 

@@ -21,7 +21,7 @@ import os
 ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from utils_neo4j import get_session  # type: ignore
+from utils.neo4j import get_session  # type: ignore
 VECTOR_NODE_LABEL = os.getenv("VECTOR_NODE_LABEL", "QueryExample")
 
 router = APIRouter()

@@ -49,3 +49,6 @@ logs/
 *.swp
 *~
 
+# MkDocs build output
+site/
+

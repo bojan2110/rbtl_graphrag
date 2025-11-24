@@ -69,3 +69,4 @@ def close_driver() -> None:
             _driver.close()
         finally:
             _driver = None
+

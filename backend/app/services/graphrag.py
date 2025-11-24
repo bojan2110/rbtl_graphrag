@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 PROMPTS_DIR = ROOT / "ai" / "prompts"
 
-from utils_neo4j import get_session
+from utils.neo4j import get_session
 from ai.schema.schema_utils import get_cached_schema, fetch_schema_from_neo4j
 from ai.terminology.loader import load as load_terminology, as_text as terminology_as_text
 from ai.fewshots.vector_store import get_vector_store
