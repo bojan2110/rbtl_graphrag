@@ -92,7 +92,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 - ✅ Matches cloud deployment exactly
 - ✅ Easy to share with team members
 
-See [Docker Deployment Guide](../DOCKER_DEPLOYMENT.md) for detailed instructions and troubleshooting.
+See [Docker Deployment Guide](DOCKER_DEPLOYMENT.md) for detailed instructions and troubleshooting.
 
 ### Alternative: Local Development (For Active Coding)
 

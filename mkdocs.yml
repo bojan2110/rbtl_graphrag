@@ -41,6 +41,7 @@ nav:
       - Frontend / UI: architecture/frontend.md
       - AI & MCP Stack: architecture/ai-stack.md
   - Operations:
+      - Docker Deployment: DOCKER_DEPLOYMENT.md
       - Azure Production Deployment: operations/azure-deployment.md
       - Deployment & Environments: operations/deployment.md
       - Testing Strategy: operations/testing.md
