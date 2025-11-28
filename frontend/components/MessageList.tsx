@@ -96,11 +96,9 @@ export default function MessageList({
                 {message.role === 'assistant' && onToggleFavorite && message.id && (
                   <button
                     onClick={() => onToggleFavorite(message.id, !message.isFavorite)}
-                    className={`p-1 rounded-full transition-colors ${
-                      message.role === 'user'
-                        ? 'text-white hover:bg-white/20'
-                        : 'text-gray-500 hover:bg-gray-200'
-                    } ${message.isFavorite ? 'text-yellow-400' : ''}`}
+                    className={`p-1 rounded-full transition-colors text-gray-500 hover:bg-gray-200 ${
+                      message.isFavorite ? 'text-yellow-400' : ''
+                    }`}
                     disabled={favoriteUpdatingId === message.id}
                     title={message.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                   >

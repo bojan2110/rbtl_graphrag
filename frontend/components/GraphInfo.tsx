@@ -174,11 +174,11 @@ export default function GraphInfo() {
         nodes: {
           shape: 'box',
           font: { size: 28 }, // Doubled from 14
-          margin: 40, // Doubled from 20 for bigger nodes
+          margin: { top: 40, right: 40, bottom: 40, left: 40 }, // Doubled from 20 for bigger nodes
         },
         edges: {
           font: { size: 24, align: 'middle' }, // Doubled from 12
-          smooth: { type: 'curvedCW', roundness: 0.2 },
+          smooth: { enabled: true, type: 'curvedCW', roundness: 0.2 },
           length: 400, // Doubled from 200
         },
         physics: {
@@ -208,7 +208,8 @@ export default function GraphInfo() {
       visNetworkRef.current = new VisNetwork(networkRef.current, data, options)
       
       // Disable physics after stabilization to keep graph static
-      visNetworkRef.current.on('stabilizationEnd', () => {
+      // Use type assertion for event name that may not be in TypeScript definitions
+      ;(visNetworkRef.current as any).on('stabilizationEnd', () => {
         if (visNetworkRef.current) {
           visNetworkRef.current.setOptions({ physics: false })
         }

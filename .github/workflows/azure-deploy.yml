@@ -8,6 +8,7 @@ on:
       - 'backend/**'
       - 'frontend/**'
       - 'ai/**'
+      - 'utils/**'
       - 'Dockerfile'
       - '.github/workflows/azure-deploy.yml'
   workflow_dispatch:  # Allow manual triggering
@@ -15,8 +16,8 @@ on:
 env:
   AZURE_CONTAINER_REGISTRY: acrrbtlgraphrag
   RESOURCE_GROUP: rg-rbtl-graphrag-prod
-  CONTAINER_APP_NAME: ca-rbtl-graphrag-backend
-  STATIC_WEB_APP_NAME: swa-rbtl-graphrag-prod
+  BACKEND_CONTAINER_APP: ca-rbtl-graphrag-backend
+  FRONTEND_CONTAINER_APP: ca-rbtl-graphrag-frontend
 
 jobs:
   build-backend:
@@ -33,18 +34,27 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
       
-      - name: Build and push Docker image
+      - name: Build and push backend Docker image
         run: |
-          docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:${{ github.sha }} .
+          docker build -f backend/Dockerfile -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:${{ github.sha }} .
           docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:${{ github.sha }}
           docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:${{ github.sha }} \
             ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:latest
           docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:latest
       
-      - name: Update Container App
+      - name: Get backend URL
+        id: backend-url
+        run: |
+          BACKEND_URL=$(az containerapp show \
+            --name ${{ env.BACKEND_CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://$BACKEND_URL" >> $GITHUB_OUTPUT
+      
+      - name: Update backend Container App
         run: |
           az containerapp update \
-            --name ${{ env.CONTAINER_APP_NAME }} \
+            --name ${{ env.BACKEND_CONTAINER_APP }} \
             --resource-group ${{ env.RESOURCE_GROUP }} \
             --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-backend:${{ github.sha }}
 
@@ -55,27 +65,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v20
+      - name: Login to Azure
+        uses: azure/login@v1
         with:
-          node-version: '18'
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
       
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
+      - name: Login to ACR
+        run: az acr login --name ${{ env.AZURE_CONTAINER_REGISTRY }}
       
-      - name: Build frontend
-        working-directory: frontend
-        env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-        run: npm run build
+      - name: Get backend URL
+        id: backend-url
+        run: |
+          BACKEND_URL=$(az containerapp show \
+            --name ${{ env.BACKEND_CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://$BACKEND_URL" >> $GITHUB_OUTPUT
       
-      - name: Deploy to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "frontend"
-          output_location: ".next"
+      - name: Build and push frontend Docker image
+        run: |
+          docker build -f frontend/Dockerfile \
+            --build-arg NEXT_PUBLIC_API_URL=${{ steps.backend-url.outputs.url }} \
+            -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-frontend:${{ github.sha }} .
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-frontend:${{ github.sha }}
+          docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-frontend:${{ github.sha }} \
+            ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-frontend:latest
+          docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-frontend:latest
+      
+      - name: Update frontend Container App
+        run: |
+          az containerapp update \
+            --name ${{ env.FRONTEND_CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/rbtl-graphrag-frontend:${{ github.sha }} \
+            --set-env-vars "NEXT_PUBLIC_API_URL=${{ steps.backend-url.outputs.url }}"
 
