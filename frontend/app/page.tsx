@@ -6,39 +6,72 @@ import KnowledgeBase from '@/components/KnowledgeBase'
 import FavoritesView from '@/components/FavoritesView'
 import GraphInfo from '@/components/GraphInfo'
 import Sidebar, { MenuOption } from '@/components/Sidebar'
-import { fetchChatUsers } from '@/lib/api'
+import Login from '@/components/Login'
+
+const AUTH_STORAGE_KEY = 'graphrag_authenticated_user'
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+
+interface AuthData {
+  username: string
+  loginTimestamp: number
+}
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+  const [authenticatedUser, setAuthenticatedUser] = useState<string | null>(null)
   const [activeOption, setActiveOption] = useState<MenuOption>('chat')
-  const [testerUsers, setTesterUsers] = useState<string[]>([])
-  const [selectedTester, setSelectedTester] = useState<string | null>(null)
-  const [isLoadingTesters, setIsLoadingTesters] = useState(false)
-  const [testerError, setTesterError] = useState<string | null>(null)
   const [isChatProcessing, setIsChatProcessing] = useState(false)
 
+  // Check for existing authentication on mount
   useEffect(() => {
-    const loadTesters = async () => {
-      setIsLoadingTesters(true)
-      setTesterError(null)
-      try {
-        const users = await fetchChatUsers()
-        setTesterUsers(users)
-        if (!selectedTester && users.length > 0) {
-          setSelectedTester(users[0])
+    if (typeof window !== 'undefined') {
+      const storedAuth = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (storedAuth) {
+        try {
+          const authData: AuthData = JSON.parse(storedAuth)
+          const now = Date.now()
+          const timeSinceLogin = now - authData.loginTimestamp
+
+          // Check if session is still valid (less than 24 hours old)
+          if (timeSinceLogin < SESSION_DURATION_MS) {
+            setAuthenticatedUser(authData.username)
+            setIsAuthenticated(true)
+          } else {
+            // Session expired, clear it
+            localStorage.removeItem(AUTH_STORAGE_KEY)
+          }
+        } catch (error) {
+          // Invalid stored data, clear it
+          localStorage.removeItem(AUTH_STORAGE_KEY)
         }
-      } catch (error) {
-        setTesterError(
-          `Unable to load tester accounts${
-            error instanceof Error ? `: ${error.message}` : ''
-          }`
-        )
-      } finally {
-        setIsLoadingTesters(false)
       }
     }
-    loadTesters()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const handleLogin = (username: string) => {
+    if (typeof window !== 'undefined') {
+      const authData: AuthData = {
+        username,
+        loginTimestamp: Date.now(),
+      }
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData))
+    }
+    setAuthenticatedUser(username)
+    setIsAuthenticated(true)
+  }
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+    }
+    setAuthenticatedUser(null)
+    setIsAuthenticated(false)
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />
+  }
 
   return (
     <main className="flex h-screen bg-gray-50 overflow-hidden">
@@ -46,12 +79,8 @@ export default function Home() {
       <Sidebar
         activeOption={activeOption}
         onOptionChange={setActiveOption}
-        testerUsers={testerUsers}
-        selectedTester={selectedTester}
-        onTesterChange={setSelectedTester}
-        isLoadingTesters={isLoadingTesters}
-        testerError={testerError}
-        isTesterSelectionDisabled={isChatProcessing}
+        loggedInUser={authenticatedUser}
+        onLogout={handleLogout}
       />
       
       {/* Main Content Area (3/4 of screen) */}
@@ -60,9 +89,9 @@ export default function Home() {
           <div className="flex-1 flex flex-col p-6 min-h-0 overflow-hidden">
             <div className="flex-1 min-h-0 overflow-hidden">
               <ChatInterface
-                selectedUser={selectedTester}
-                isUserSelectionReady={!isLoadingTesters && !testerError}
-                userLoadError={testerError}
+                selectedUser={authenticatedUser}
+                isUserSelectionReady={!!authenticatedUser}
+                userLoadError={null}
                 onProcessingChange={setIsChatProcessing}
               />
             </div>
@@ -71,15 +100,15 @@ export default function Home() {
         
         {activeOption === 'knowledge-base' && (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <KnowledgeBase selectedTester={selectedTester} />
+            <KnowledgeBase selectedTester={authenticatedUser} />
           </div>
         )}
 
         {activeOption === 'favorites' && (
           <div className="flex-1 flex flex-col p-6 min-h-0 overflow-hidden">
             <FavoritesView
-              selectedUser={selectedTester}
-              isUserSelectionReady={!isLoadingTesters && !testerError}
+              selectedUser={authenticatedUser}
+              isUserSelectionReady={!!authenticatedUser}
             />
           </div>
         )}

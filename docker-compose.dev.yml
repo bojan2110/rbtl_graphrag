@@ -25,7 +25,7 @@ services:
     environment:
       - NODE_ENV=development
     ports:
-      - "3003:3002"  # Map host 3003 to container 3002 to avoid conflict with local
+      - "3003:3000"  # Map host 3003 to container 3000 (Next.js dev server default)
     # Override to use dev server instead of production build
     command: sh -c "npm install && npm run dev"
 

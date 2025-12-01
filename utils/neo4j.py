@@ -40,8 +40,25 @@ def get_driver() -> Driver:
             max_connection_lifetime=max_connection_lifetime,
             max_connection_pool_size=max_connection_pool_size,
         )
-        # Fail fast if connectivity is not possible
-        _driver.verify_connectivity()
+        # Skip verify_connectivity() during initialization to avoid hanging
+        # Connection will be tested on first actual query/operation
+        # Set NEO4J_VERIFY_ON_INIT=true in environment to enable verification
+        verify_on_init = os.environ.get("NEO4J_VERIFY_ON_INIT", "").lower() in {"1", "true", "yes"}
+        if verify_on_init:
+            try:
+                _driver.verify_connectivity()
+            except Exception as e:
+                # If connectivity check fails, close the driver and re-raise
+                try:
+                    _driver.close()
+                except Exception:
+                    pass
+                _driver = None
+                raise RuntimeError(
+                    f"Failed to connect to Neo4j at {uri}. "
+                    f"Please check your NEO4J_URI, NEO4J_USER, and NEO4J_PASSWORD. "
+                    f"Original error: {e}"
+                ) from e
         atexit.register(close_driver)
     return _driver
 
