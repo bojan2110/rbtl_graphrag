@@ -1,6 +1,4 @@
-# RBTL GraphRAG Documentation
-
-## Introduction
+# RBTL GraphRAG: Introduction
 
 RBTL GraphRAG is a web-based portal that provides a natural language interface for querying Neo4j graph databases, enabling users to explore complex graph data without needing to be technical experts themselves. The system delivers an intuitive chat-based experience where users can ask questions in plain English and receive both structured query results and conversational summaries. The AI does its magic in the background - deciding on the intent of the user questions, and calling the applicable tools(agents) that handle: cypher-to-text queries, data visualization or advanced graph algorithms. The portal includes features such as personal chat interface, query result visualization, a knowledge base for organizing query examples (for improving the AI capabilities), and real-time agent tracking that shows where queries are routed in the agentic system.
 
@@ -9,12 +7,4 @@ The platform is designed for analysts, researchers, and business users who need 
 The knowledge graph itself represents a comprehensive  dataset focused on social media influence, geographic area information and demographic analysis, specifically exploring Rotterdam's youth health and wellbeing at the intersection between the online and offline envrionments. The graph models a rich network of entities including: young people with detailed demographic, lifestyle, and behavioral attributes (age, education, health indicators, substance use patterns, school experiences); influencers who maintain accounts across TikTok and YouTube platforms; social media content such as videos, comments, hashtags, stickers, and topics from both platforms; and geographic regions including municipalities and neighborhoods with extensive socioeconomic indicators (income levels, housing characteristics, population demographics, access to services). The relationships in the graph capture how people follow influencers, where individuals reside geographically, what content influencers create, and how videos connect to tags, topics, and audience engagement metrics. This structure enables researchers to explore complex questions about the intersection of social media consumption, influencer networks, demographic characteristics, and geographic factors—such as understanding which types of influencers resonate with specific demographic groups, how content themes vary across geographic regions, or what patterns emerge in the social media behaviors of people with different socioeconomic backgrounds.
 
 At its core, RBTL GraphRAG leverages several sophisticated AI capabilities to deliver intelligent query generation and analysis. The system uses large language models (LLMs) to convert natural language questions into accurate Cypher queries, with schema-aware prompt engineering that ensures generated queries respect the Neo4j database structure. An Graph Analytics Agent extends this functionality by intelligently routing certain questions to graph data science algorithms—such as community detection (Leiden), influence ranking (ArticleRank) or visualizing the Cypher obtained data. The platform also maintains a knowledge base of categorized query examples stored in MongoDB and synchronized with Neo4j's vector store, enabling few-shot learning that helps the LLM generate more accurate queries by referencing similar past questions. Full observability is provided through Langfuse integration, which traces all LLM calls, prompt versions, and tool invocations, giving administrators visibility into system performance and query patterns.
-
-## How to Use These Docs
-
-- Start with [Getting Started](getting-started.md) to run the dockerized application locally.
-- Explore the [Architecture](architecture/system-overview.md) section for diagrams and service breakdowns.
-- Review [Docker Deployment](DOCKER_DEPLOYMENT.md) for local and cloud container deployment.
-- Consult [Operations](operations/deployment.md) for environment-specific deployment guides.
-- See [Azure Production Deployment](operations/azure-deployment.md) for cloud deployment with Docker containers.
 
